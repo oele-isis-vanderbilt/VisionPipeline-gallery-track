@@ -10,8 +10,8 @@ from ..trackers import available_trackers
 # Optional BoxMOT registries (graceful fallback if unavailable)
 # BoxMOT reorganized ReID modules across versions; support both layouts.
 try:  # BoxMOT newer (v16+)
-    from boxmot.reid.factory import MODEL_FACTORY  # {arch_name: ctor}
-    from boxmot.reid.config import TRAINED_URLS  # {weight_name: url}
+    from boxmot.reid.core.factory import MODEL_FACTORY  # {arch_name: ctor}
+    from boxmot.reid.core.config import TRAINED_URLS  # {weight_name: url}
 except Exception:  # pragma: no cover
     try:  # BoxMOT older
         from boxmot.appearance.reid.factory import MODEL_FACTORY  # type: ignore

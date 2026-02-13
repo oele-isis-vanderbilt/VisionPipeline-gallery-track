@@ -597,8 +597,11 @@ Over time you build a small set of example images per identity (a “gallery”)
 - A simple toolbar / buttons for selecting:
   - the input **video**
   - the output **gallery root folder**
-  - the current **identity name** (folder to save into)
-- A list/indicator of how many crops you’ve saved for the current identity
+- Identity controls:
+  - a text field to type an **identity name** (folder name, e.g., `person_A`)
+  - a selector/list of existing identities found under the gallery root
+  - a button to **add/create** the identity folder if it doesn’t exist
+- A counter/indicator showing how many crops have been saved for the selected identity
 
 (Exact layout may vary slightly by OS.)
 
@@ -612,11 +615,29 @@ Over time you build a small set of example images per identity (a “gallery”)
 6) Draw a box around the identity and save the crop.
 7) Repeat for multiple frames and multiple identities.
 
+### Adding and selecting identities
+
+- **Identity = folder name.** Each identity you create becomes a subfolder under the gallery root.
+- To add a new identity:
+  1) Type a new name (for example: `person_A`).
+  2) Click the **Add/Create** identity button.
+  3) The tool creates `<gallery_root>/person_A/` if it doesn’t already exist.
+- To switch to an existing identity:
+  - Select it from the identity list/dropdown. New crops will be saved into that identity’s folder.
+
+### Drawing boxes (click + drag)
+
+- Pause or scrub to a frame where the identity is clearly visible.
+- **Click and hold** on the video frame, **drag** to form a rectangle around the identity, then **release** to finish the box.
+- After the box is drawn, click the **Save** / **Save crop** button to write the cropped JPEG into the selected identity folder.
+
+If you draw the wrong box, simply draw a new one and save again (you can delete unwanted images from the identity folder later).
+
 Tips:
 - Use a variety of views (front/side), lighting, and distances.
 - Avoid heavy blur/occlusion; clean crops work best.
 
-The tool will create the identity subfolders if they don’t exist. Each saved crop is written as a JPEG into the selected identity folder under the gallery root.
+The tool will create the identity subfolders if they don’t exist. Each saved crop is written as a JPEG into the selected identity folder under the gallery root. If you reopen the tool later and select the same gallery root, it will automatically pick up the existing identity folders and let you continue adding more crops to them.
 
 ## Paths and defaults
 
@@ -626,6 +647,8 @@ You can start the UI in two ways:
 - **With arguments**: you can pre-fill the paths from the command line.
 
 If you launch without `--gallery-root` and/or `--video`, you must choose them in the UI before you can save crops.
+
+When you choose a gallery root that already contains identity subfolders, the UI will load and list them automatically so you can keep adding crops.
 
 ## CLI usage (pip)
 

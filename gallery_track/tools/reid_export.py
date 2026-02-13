@@ -83,7 +83,7 @@ def _parse_args() -> argparse.Namespace:
     ap.add_argument("--batch-size", type=int, default=1, help="Dummy batch size used for export")
 
     # Per-format knobs used by BoxMOT exporters
-    ap.add_argument("--optimize", action="store_true", help="Optimize TorchScript for mobile (CPU only)")
+    ap.add_argument("--optimize", action="store_true", help="Optimize TorchScript for mobile")
     ap.add_argument("--dynamic", action="store_true", help="Enable dynamic shapes where supported")
     ap.add_argument("--simplify", action="store_true", help="Simplify ONNX")
     ap.add_argument("--opset", type=int, default=18, help="ONNX opset")
