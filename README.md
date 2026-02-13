@@ -15,19 +15,19 @@ Trackers included:
 ## Vision Pipeline
 
 ```
-Original Video (.mp4)
-        │
-        ▼
-  detect-lib
-  (Detection Stage)
-        │
-        └── detections.json  (det-v1)
-                │
-                ▼
-        track-lib
-        (Tracking + ReID Stage)
-                │
-                └── tracked.json (track-v1)
+Original Video (.mp4) ───────────────┐
+        │                            │
+        ▼                            │
+  detect-lib                         │
+  (Detection Stage)                  │
+        │                            │
+        └── detections.json (det-v1) │
+                     │               │
+                     └──────┐        │
+                            ▼        ▼
+                         track-lib (Tracking + ReID Stage)
+                            │
+                            └── tracked.json (track-v1)
 ```
 
 Stage 1 (Detection):
@@ -227,63 +227,62 @@ No temporal association.
 
 ### Required
 
-- `--dets-json <path>`: Path to det-v1 detections JSON (from detect-lib).
-- `--video <path>`: Path to the original input video (must match the detections).
+- `--dets-json <path>`: Path to the det-v1 detections JSON produced by detect-lib (must correspond to the same video passed via `--video`).
+- `--video <path>`: Path to the source video used for detection. The tracker reads frames from this file for timing/visualization and expects frame order to match `--dets-json`.
 
 ### Tracker selection
 
-- `--tracker <name>`: `gallery_hybrid` (default) or `gallery_only`.
+- `--tracker <name>`: Tracking backend to use. `gallery_hybrid` (default) performs temporal association; `gallery_only` assigns identities per frame with no temporal linking.
 
 ### Class filtering
 
-- `--classes <ids>`: Track only these class IDs (comma/semicolon-separated). If omitted, all detections are tracked.
-- `--filter-gallery`: When enabled, only tracked classes are filtered to those with a `gallery_id`. Non-tracked classes remain intact.
+- `--classes <ids>`: Comma/semicolon-separated class IDs to *track*. If omitted, all classes are tracked. If provided, only these classes receive `track_id` / gallery matching; other classes are passed through unchanged.
+- `--filter-gallery`: For tracked classes only, drop detections that did not receive a `gallery_id`. Detections from non-tracked classes are always kept.
 
 ### Optional labels
 
-- `--class-names <file>`: Text file with one class name per line (used only for drawing labels).
+- `--class-names <file>`: Optional newline-delimited class-name file where line index = `class_id`. Used only for on-frame labels (does not affect tracking logic).
 
 ### Artifact saving (opt-in)
 
-- `--json`: Save `tracked.json` under the run directory.
-- `--frames`: Save annotated frames under the run directory (`frames/`).
-- `--save-video <name.mp4>`: Save annotated video under the run directory.
-- `--out-dir <dir>`: Output root directory used only if saving artifacts (default `out`).
-- `--run-name <name>`: Run folder name inside out-dir (defaults to video stem).
-- `--display`: Show live annotated frames (press `q` to stop display).
-- `--save-fps <float>`: Override output video FPS (defaults to source FPS).
-- `--fourcc <fourcc>`: FourCC for saved video (default `mp4v`).
+- `--json`: Write the track-v1 payload to `<run>/tracked.json`.
+- `--frames`: Save annotated frames as JPEGs under `<run>/frames/` (can be large).
+- `--save-video <name.mp4>`: Save an annotated video as `<run>/<name.mp4>`.
+- `--out-dir <dir>`: Output root used only when saving artifacts (default: `out`). No run folder is created unless a saving flag is enabled.
+- `--run-name <name>`: Name of the run folder under `--out-dir`. Defaults to the input video stem.
+- `--display`: Show a live annotated window while processing (press `q` to quit). Does not write files unless saving flags are set.
+- `--save-fps <float>`: Override FPS for the saved video only (default: source FPS). Useful if the source FPS metadata is incorrect.
+- `--fourcc <fourcc>`: FourCC codec for `--save-video` (default: `mp4v`). Try `avc1`/`H264` if supported by your OpenCV build.
 
 ### Hybrid tracker knobs (`gallery_hybrid`)
 
-- `--track-thresh <float>`: High-confidence threshold for tracking.
+- `--track-thresh <float>` (hybrid only): Confidence threshold for primary association and new track creation. Detections in `0.1 < score < track_thresh` may still be used in a secondary association step.
   - Increase → fewer tracks, cleaner but may miss weak detections.
   - Decrease → more tracks, more noise.
-  - Note: detections in `0.1 < score < track_thresh` can still contribute in a secondary association step.
 
-- `--match-thresh <float>`: IoU association threshold.
+- `--match-thresh <float>` (hybrid only): IoU matching threshold for associating detections to existing tracks.
   - Increase → stricter linking (fewer wrong matches) but more fragmentation.
   - Decrease → more aggressive linking but more ID switches.
 
-- `--track-buffer <int>`: How long to keep lost tracks alive (in frames, scaled by `--frame-rate`).
+- `--track-buffer <int>` (hybrid only): Max number of frames to keep a lost track before it is removed.
   - Increase → better occlusion recovery.
   - Decrease → faster cleanup.
 
-- `--frame-rate <int>`: Reference FPS used to scale the internal buffer (default 30).
+- `--frame-rate <int>` (hybrid only): Reference FPS used to scale time-based behavior in the tracker (default 30). Set to your video FPS if it differs significantly.
 
-- `--per-class`: Run independent tracking per class.
+- `--per-class` (hybrid only): Maintain independent tracking state per `class_id` (reduces cross-class ID swaps at the cost of more state/compute).
   - Helps avoid cross-class linking.
   - Adds small overhead.
 
-- `--max-obs <int>`: Max observation history per track (used for state/history).
+- `--max-obs <int>` (hybrid only): Max observation history stored per track for internal smoothing/state.
 
 ### ReID / gallery knobs
 
-- `--reid-weights <path|name>`: ReID weights file path (recommended) or a name expected under `--models-dir`.
+- `--reid-weights <path|name>`: ReID weights to use for embedding extraction. Provide either an explicit file path or a filename that exists under `--models-dir`.
   - Required for `gallery_only`.
-  - Optional for `gallery_hybrid` (if omitted, hybrid runs temporal tracking only).
+  - Optional for `gallery_hybrid` (if omitted, hybrid runs temporal tracking with no gallery assignment).
 
-- `--gallery <dir>`: Gallery root directory:
+- `--gallery <dir>`: Gallery root directory containing one subfolder per identity (images inside each).
 
   ```
   galleries/
@@ -293,21 +292,15 @@ No temporal association.
       *.jpg
   ```
 
-- `--reid-frequency <int>`: How often to run ReID matching (hybrid only).
-  - Lower → more identity updates (slower).
-  - Higher → fewer identity updates (faster).
-
-- `--gallery-match-threshold <float>`: Cosine distance threshold.
-  - Lower → stricter matches.
-  - Higher → more assignments (higher risk of wrong IDs).
-
-- `--device <str>`: Device selector: `auto`, `cpu`, `cuda`, `mps`, `0`, etc.
-- `--half`: Enable FP16 where supported.
-- `--models-dir <dir>`: Directory where weights are stored (default `models`).
+- `--reid-frequency <int>` (hybrid only): Run gallery matching every N frames (lower = more frequent updates, higher = faster).
+- `--gallery-match-threshold <float>`: Cosine-distance threshold for assigning a `gallery_id` (lower = stricter, higher = more assignments but more risk of false IDs).
+- `--device <str>`: Compute device for ReID: `auto`, `cpu`, `cuda`, `mps`, or a CUDA device index like `0`.
+- `--half`: Enable FP16 for ReID when supported (typically GPU-only).
+- `--models-dir <dir>`: Directory used for resolving weight *names* passed to `--reid-weights` (default: `models`).
 
 ### UX
 
-- `--no-progress`: Disable progress bar output.
+- `--no-progress`: Disable the tqdm progress bar (useful for clean logs).
 
 ---
 
@@ -326,42 +319,42 @@ python -c "import gallery_track; print(gallery_track.available_trackers())"
 #### `gallery_track.track_video(...)`
 
 **Required**
-- `dets_json` (`str | Path`): Path to det-v1 JSON output from detect-lib.
-- `video` (`str | Path`): Input video path.
-- `tracker` (`str`): Tracker backend (`gallery_hybrid` or `gallery_only`).
+- `dets_json`: Path to det-v1 detections JSON (must correspond to the same video passed via `video`).
+- `video`: Path to the source video used for detection.
+- `tracker`: Tracker backend (`gallery_hybrid` or `gallery_only`).
 
 **Class filtering**
-- `classes` (`Sequence[int] | None`): Track only these class IDs.
-- `filter_gallery` (`bool`): If True, drop tracked-class detections without a gallery identity.
+- `classes`: Class IDs to track. If provided, only these classes receive track IDs / gallery matching; other classes pass through unchanged.
+- `filter_gallery`: For tracked classes only, drop detections that did not receive a `gallery_id`.
 
 **Hybrid tracker knobs (`gallery_hybrid`)**
-- `track_thresh` (`float`): High-confidence threshold for tracking.
-- `match_thresh` (`float`): IoU association threshold.
-- `track_buffer` (`int`): Lost-track buffer length.
-- `frame_rate` (`int`): Reference FPS used for buffer scaling.
-- `per_class` (`bool`): Run tracker per class.
-- `max_obs` (`int`): Observation history size.
+- `track_thresh` (hybrid only): Confidence threshold for primary association and new track creation.
+- `match_thresh` (hybrid only): IoU matching threshold for associating detections to existing tracks.
+- `track_buffer` (hybrid only): Max number of frames to keep a lost track before removal.
+- `frame_rate` (hybrid only): Reference FPS used to scale time-based behavior (default 30).
+- `per_class` (hybrid only): Maintain independent tracking state per class_id.
+- `max_obs` (hybrid only): Max observation history stored per track.
 
 **ReID / gallery knobs**
-- `reid_weights` (`str | Path | None`): ReID weights path/name.
-- `gallery` (`str | Path | None`): Gallery directory.
-- `reid_frequency` (`int`): Match frequency (hybrid only).
-- `gallery_match_threshold` (`float`): Cosine distance threshold.
-- `device` (`str`): Device selector (`auto/cpu/cuda/mps/0`).
-- `half` (`bool`): FP16.
-- `models_dir` (`str | Path`): Weights directory.
+- `reid_weights`: Weights to use for ReID embedding extraction (path or name under `models_dir`).
+- `gallery`: Gallery root directory (subfolder per identity, images inside).
+- `reid_frequency` (hybrid only): Run gallery matching every N frames.
+- `gallery_match_threshold`: Cosine-distance threshold for assigning a gallery_id.
+- `device`: Compute device for ReID (`auto/cpu/cuda/mps/0`).
+- `half`: Enable FP16 for ReID when supported.
+- `models_dir`: Directory used to resolve weight names.
 
 **Artifacts (all off by default)**
-- `save_json_flag` (`bool`): Save `tracked.json`.
-- `save_frames` (`bool`): Save annotated frames under `frames/`.
-- `save_video` (`str | None`): Filename for annotated video.
-- `out_dir` (`str | Path`): Output root (used only if saving artifacts).
-- `run_name` (`str | None`): Run folder name.
-- `display` (`bool`): Live display window.
-- `save_fps` (`float | None`): Output video FPS override.
-- `fourcc` (`str`): Video fourcc (default `mp4v`).
-- `class_names` (`Sequence[str] | None`): Class name mapping for visualization.
-- `no_progress` (`bool`): Disable progress.
+- `save_json_flag`: Write `<run>/tracked.json`.
+- `save_frames`: Write annotated JPEG frames under `<run>/frames/`.
+- `save_video`: Filename for annotated video under the run folder (e.g., `annotated.mp4`).
+- `out_dir`: Output root used only when saving artifacts.
+- `run_name`: Run folder name (defaults to video stem).
+- `display`: Show a live annotated window during processing.
+- `save_fps`: Override FPS for saved video only.
+- `fourcc`: FourCC codec for saved video (default `mp4v`).
+- `class_names`: Optional class-name mapping for visualization labels.
+- `no_progress`: Disable tqdm progress bar.
 
 Returns a `TrackResult` with `payload` (track-v1 JSON), `paths` (only populated when saving), and `stats`.
 
@@ -480,6 +473,39 @@ This tool:
 - exports your ReID weights into one or more formats
 - collects artifacts under a run folder (`--out-dir` / `--run-name`)
 - writes `export_meta.json` with settings and final output paths
+
+## CLI arguments
+
+All exports are collected under a run folder:
+- `<out-dir>/<run-name>/...`
+- `export_meta.json` is written alongside exported artifacts with settings + final output paths.
+
+### Output organization
+
+- `--out-dir <dir>`: Root folder where export runs are written (default: `models/exports`).
+- `--run-name <name>`: Run subfolder name under `--out-dir`. Defaults to the weights file stem.
+
+### Core export arguments
+
+- `--weights <path>`: Path to the source ReID `.pt` weights to export. Required unless using a `--list-*` option.
+- `--include <formats...>`: One or more export formats to generate (default: `torchscript`). Supported: `torchscript`, `onnx`, `openvino`, `engine`, `tflite`.
+- `--device <str>`: Device used for export and dummy inference (`cpu`, `cuda`, `mps`, or a CUDA index like `0`).
+- `--half`: Enable FP16 where supported (typically GPU exporters).
+- `--batch-size <int>`: Dummy batch size used during export (default: `1`). Some backends only support `1`.
+
+### Per-format knobs
+
+- `--optimize`: Optimize TorchScript for mobile (CPU-only).
+- `--dynamic`: Enable dynamic shapes where supported (commonly affects ONNX/TensorRT).
+- `--simplify`: Run ONNX graph simplification after export.
+- `--opset <int>`: ONNX opset version (default: `18`).
+- `--verbose`: Enable verbose logging for TensorRT export.
+
+### Listing / discovery
+
+- `--list-formats`: Print supported export formats and exit.
+- `--list-reid-models`: Print available ReID architectures (from your BoxMOT install) and exit.
+- `--list-reid-weights`: Print known pretrained weight names (from BoxMOT registries, if available) and exit.
 
 ## CLI usage (pip)
 
