@@ -1,5 +1,5 @@
 [project]
-name = "track-lib"
+name = "gallery-track-lib"
 version = "0.1.0"
 description = "A modular video tracking + gallery ReID toolkit built on top of det-v1 detection outputs. This package is the second stage in the Vision Pipeline."
 readme = "README.md"
