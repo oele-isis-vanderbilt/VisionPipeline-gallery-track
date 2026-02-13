@@ -14,7 +14,7 @@ def resolve_device(device: str) -> str:
         import torch  # type: ignore
 
         if torch.cuda.is_available():
-            return "cuda"
+            return "0"
         # MPS available on Apple Silicon if torch built with MPS
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():  # type: ignore
             return "mps"

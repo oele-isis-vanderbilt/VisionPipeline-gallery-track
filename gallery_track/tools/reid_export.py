@@ -78,7 +78,7 @@ def _parse_args() -> argparse.Namespace:
         default=["torchscript"],
         help=f"Which formats to export: {', '.join(SUPPORTED_EXPORT_FORMATS)}",
     )
-    ap.add_argument("--device", default="cpu", help="Device (cpu/cuda/mps/0)")
+    ap.add_argument("--device", default="cpu", help="Device (cpu/mps/0)(Note: there is no auto backend support here and have to be manually selected and the exact device to be specified during inferencing)")
     ap.add_argument("--half", action="store_true", help="Enable FP16 where supported")
     ap.add_argument("--batch-size", type=int, default=1, help="Dummy batch size used for export")
 

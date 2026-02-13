@@ -490,8 +490,15 @@ All exports are collected under a run folder:
 ### Core export arguments
 
 - `--weights <path>`: Path to the source ReID `.pt` weights to export. Required unless using a `--list-*` option.
-- `--include <formats...>`: One or more export formats to generate (default: `torchscript`). Supported: `torchscript`, `onnx`, `openvino`, `engine`, `tflite`.
-- `--device <str>`: Device used for export and dummy inference (`cpu`, `cuda`, `mps`, or a CUDA index like `0`).
+-- `--include <formats...>`: One or more export formats to generate (default: `torchscript`). Supported: `torchscript`, `onnx`, `openvino`, `engine`, `tflite`.
+
+```md
+> **TensorRT (`engine`) export note:** If you include `engine`, you must install a **TensorRT** version that is **compatible with your CUDA toolkit** (mismatches are the most common cause of export/runtime errors).
+>
+> - pip: `pip install <compatible tensorrt>`
+> - uv: run `uv sync` first, then `uv add <compatible-tensorrt>`
+```
+- `--device <str>`: Device used for export and dummy inference (`cpu`, `mps`, or a CUDA index like `0`) (Note: there is no auto backend support here and have to be manually selected and the exact device to be specified during inferencing).
 - `--half`: Enable FP16 where supported (typically GPU exporters).
 - `--batch-size <int>`: Dummy batch size used during export (default: `1`). Some backends only support `1`.
 
