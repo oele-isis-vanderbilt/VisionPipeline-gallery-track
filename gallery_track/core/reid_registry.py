@@ -12,8 +12,8 @@ from urllib.request import urlopen, Request
 # BoxMOT registries (graceful fallback across BoxMOT versions)
 try:
     # BoxMOT newer
-    from boxmot.reid.config import TRAINED_URLS  # {weight_filename: url}
-    from boxmot.reid.factory import MODEL_FACTORY  # {arch_name: ctor}
+    from boxmot.reid.core.config import TRAINED_URLS  # {weight_filename: url}
+    from boxmot.reid.core.factory import MODEL_FACTORY  # {arch_name: ctor}
 except Exception:  # pragma: no cover
     try:
         # BoxMOT older
