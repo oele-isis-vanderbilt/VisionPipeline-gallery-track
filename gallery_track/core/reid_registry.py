@@ -4,6 +4,11 @@ from difflib import get_close_matches
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+import os
+import shutil
+import tempfile
+from urllib.request import urlopen, Request
+
 # BoxMOT registries (graceful fallback across BoxMOT versions)
 try:
     # BoxMOT newer
@@ -42,8 +47,7 @@ def supported_reid_architectures() -> List[str]:
 def downloadable_reid_weights() -> List[str]:
     """List known downloadable ReID weight filenames from BoxMOT.
 
-    Note: gallery_track does not auto-download weights; this list is provided
-    for discovery and to help users pick the right file/name.
+    The list comes from BoxMOT's `TRAINED_URLS` registry (filename -> URL).
     """
     try:
         return sorted(TRAINED_URLS.keys())
@@ -54,6 +58,45 @@ def downloadable_reid_weights() -> List[str]:
 def accepted_weight_suffixes() -> Tuple[str, ...]:
     """Expose accepted suffixes for CLI help text."""
     return _ACCEPT_SUFFIXES
+
+
+def _download_weight_from_registry(*, filename: str, models_dir: Path) -> Path:
+    """Download a known weight file into models_dir using BoxMOT's TRAINED_URLS.
+
+    Only downloads when `filename` exists as a key in TRAINED_URLS.
+    """
+    url = None
+    try:
+        url = TRAINED_URLS.get(filename)  # type: ignore[attr-defined]
+    except Exception:
+        url = None
+
+    if not url:
+        raise FileNotFoundError(f"[gallery_track] No downloadable entry for: '{filename}'")
+
+    models_dir.mkdir(parents=True, exist_ok=True)
+    dst = (models_dir / filename).resolve()
+    if dst.exists() and dst.is_file():
+        return dst
+
+    # Download to a temp file first, then move into place atomically.
+    fd, tmp_path = tempfile.mkstemp(prefix=f"{filename}.", suffix=".tmp", dir=str(models_dir))
+    os.close(fd)
+    tmp = Path(tmp_path)
+
+    try:
+        req = Request(url, headers={"User-Agent": "gallery-track-lib"})
+        with urlopen(req, timeout=60) as r, tmp.open("wb") as f:
+            shutil.copyfileobj(r, f)
+        tmp.replace(dst)
+    finally:
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except Exception:
+            pass
+
+    return dst
 
 
 def _normalize_weight_name(name: str) -> str:
@@ -93,7 +136,8 @@ def _unknown_name_message(name: str, *, models_dir: str | Path) -> str:
         f"Tips:\n"
         f"  - Pass an explicit weights file path.\n"
         f"  - Or place the file under --models-dir and pass its name.\n"
-        f"  - To see known BoxMOT downloadable names (for reference):\n"
+        f"  - If your BoxMOT install exposes TRAINED_URLS, passing a known weight name will auto-download into --models-dir.\n"
+        f"  - To see known BoxMOT downloadable names (if available):\n"
         f"      python -m gallery_track.cli.track_video --list-reid-weights\n"
     )
     if hints:
@@ -106,14 +150,16 @@ def resolve_reid_weights(
     *,
     models_dir: str | Path = "models",
 ) -> Optional[Path]:
-    """Resolve ReID weights without downloading.
+    """Resolve ReID weights.
 
     Accepts:
       - an existing local file path
       - a weights *name* that is expected to exist under `models_dir`
 
-    This function intentionally does **not** download from URLs. If you want
-    auto-download behavior, do it in a higher-level tool/installer.
+    If the requested filename exists in BoxMOT's `TRAINED_URLS` registry, this
+    function will auto-download it into `models_dir` and return the local path.
+
+    For safety, arbitrary URLs are not accepted here: only registry-known names.
     """
     if not weights_or_name:
         return None
@@ -144,6 +190,14 @@ def resolve_reid_weights(
     cand_name = (md / fname).resolve()
     if cand_name.exists() and cand_name.is_file():
         return cand_name
+
+    # 3) Auto-download if this filename is known to BoxMOT.
+    try:
+        if fname in downloadable_reid_weights():
+            return _download_weight_from_registry(filename=fname, models_dir=md)
+    except Exception:
+        # Fall through to a helpful error message.
+        pass
 
     # Not found
     raise FileNotFoundError(_unknown_name_message(fname, models_dir=models_dir))
