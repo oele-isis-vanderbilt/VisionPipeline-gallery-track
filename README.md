@@ -498,12 +498,20 @@ All exports are collected under a run folder:
   - **Custom weights naming note:** If your `weighta` file is a custom weight, prefer naming it so the filename starts with a model name from `--list-reid-models` (e.g., `osnet_custom.pt`).
 -- `--include <formats...>`: One or more export formats to generate (default: `torchscript`). Supported: `torchscript`, `onnx`, `openvino`, `engine`, `tflite`.
 
-```md
-> **TensorRT (`engine`) export note:** If you include `engine`, you must install a **TensorRT** version that is **compatible with your CUDA toolkit** (mismatches are the most common cause of export/runtime errors).
+> **TensorRT (`engine`) export note:** If you include `engine`, you must install **both**:
+> 1) a **TensorRT** build that is **compatible with your CUDA toolkit**, and  
+> 2) NVIDIA’s **`nvidia-tensorrt`** package.
 >
-> - pip: `pip install <compatible tensorrt>`
-> - uv: run `uv sync` first, then `uv add <compatible-tensorrt>`
-```
+> (CUDA/TensorRT mismatches are the most common cause of export/runtime errors.)
+>
+> - pip:
+>   - `pip install <compatible-tensorrt>`
+>   - `pip install nvidia-tensorrt`
+> - uv: run `uv sync` first, then:
+>   - `uv add <compatible-tensorrt>`
+>   - `uv add nvidia-tensorrt`
+
+
 - `--device <str>`: Device used for export and dummy inference (`cpu`, `mps`, or a CUDA index like `0`) (Note: there is no auto backend support here and have to be manually selected and the exact device to be specified during inferencing).
 - `--half`: Enable FP16 where supported (typically GPU exporters).
 - `--batch-size <int>`: Dummy batch size used during export (default: `1`). Some backends only support `1`.
