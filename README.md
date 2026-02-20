@@ -1,6 +1,6 @@
 # gallery-track-lib
 
-**Minimum Python:** `>=3.10, <3.13`
+**Python:** `>=3.10, <3.13`
 
 **gallery-track-lib** is a modular **video object tracking + gallery ReID** toolkit with a clean **track-v1** JSON schema, pluggable trackers, and optional tooling.
 
